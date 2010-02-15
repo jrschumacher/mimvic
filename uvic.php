@@ -4,7 +4,7 @@
 
 Copyright (c) 2009 Zohaib Sibt-e-Hassan ( MaXPert )
 
-MiMViC v0.9
+MiMViC Shift v0.9.3
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -31,23 +31,62 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 namespace MiMViC;
 
+/**
+* Class for throwing MiMViC specific exceptions
+*/
+class MiMViCException extends Exception{
+    
+}
+
+/**
+* Global array to hold configuration of data for the framework
+* 
+* @var array
+*/
 $uvicConfig = array();
 
+/**
+* Route maps for the trigger actions
+* 
+* @var array
+*/
 $uvicConfig['maps'] = array( );
 
-//set associative value
+/**
+* Associative array for holding the user stored data
+* 
+* @var array
+*/
+$uvicConfig['userData'] = array( );
+
+/**
+* Store the user associated data key value pairs
+* 
+* @param mixed $name name of parameter to be set
+* @param mixed $value value of parameter to be set
+*/
 function store($name, &$value){
 	global $uvicConfig;
-	$uvicConfig[$name] = $value;
+	$uvicConfig['userData'][$name] = $value;
 }
 
-//get associative value
+/**
+* Retrieve the user stored value
+* 
+* @param mixed $name
+* @return mixed
+*/
 function &retrieve($name){
 	global $uvicConfig;
-	return $uvicConfig[$name];
+    if(!isset($uvicConfig['userData'][$name]))
+        throw new MiMViCException("No such key");
+	return $uvicConfig['userData'][$name];
 }
 
-//Get URI segement after the script URI
+/**
+* Get URI segement after the script URI
+* 
+*/
 function ugetURI(){
 	//Seprate Segments
 	$req=$_SERVER['REQUEST_URI'];
@@ -74,18 +113,24 @@ function ugetURI(){
 	return $req;
 }
 
-//Get request method
+/**
+* Get request method
+* 
+*/
 function ugetReqMethod(){
 	return strtolower( $_SERVER['REQUEST_METHOD'] );
 }
 
-/*
-* Parse URI segement returning true if $uri matches $pattern
+/**
+* Parse URI segement
 * Pattern can have expression like following
-*	# /foo/:varname/bar => param['varname'] will contain value
-*	# /foo/* /bar/* => param['segments'] will contain all * parsed params
+*    # /foo/:varname/bar => param['varname'] will contain value
+*    # /foo/* /bar/* => param['segments'] will contain all * parsed params
+* 
+* @param string $pattern custom pattern expression
+* @param string $ur the url to match against the pattern
+* @return mixed parsed array containing associative array of 'name' => 'value for param', 'segments' => array() containg '*' params; false if url doesn't match
 */
-
 function uparseURIParams($pattern, $ur){
 	$psegs = explode('/', $pattern); //Pattern segments
 	$usegs = explode('/', $ur); //URI segments
@@ -120,8 +165,11 @@ function uparseURIParams($pattern, $ur){
 	return $ret;
 }
 
-/*
+/**
 * Trigger the $uri matching function according to request $method
+* 
+* @param mixed $uri URI obtained from request
+* @param mixed $method REQUEST method
 */
 function utriggerFunction($uri, $method){
 	global $uvicConfig;
@@ -153,10 +201,20 @@ function utriggerFunction($uri, $method){
 	return NULL;
 }
 
-// Trigger on request type
+/**
+* Trigger on request type 
+* 
+* @param mixed $method request method(s); can be array or * for all method types
+* @param mixed $uri request urls
+* @param mixed $func callback function
+* @param mixed $agent requesting agent regular expression
+*/
 function dispatch($method, $uri, $func, $agent = false){
 	global $uvicConfig;
 	$map = &$uvicConfig['maps'];
+    
+    if($method == '*')
+        $method = array('get','post','put','delete');
 	
 	//--If method was array then for all methods register the function
 	if( is_array($method) )
@@ -174,22 +232,46 @@ function dispatch($method, $uri, $func, $agent = false){
 	$map[$uri][] = array('method'=> $method, 'func'=> $func, 'agent' => $agent);
 }
 
-// get request register
+/**
+* get request register
+* 
+* @param mixed $uri request url
+* @param mixed $func callback function name or function itself
+* @param mixed $agent requesting agent regular expression
+*/
 function get($uri, $func, $agent = false){
 	dispatch('get', $uri, $func, $agent);
 }
 
-// post request register
+/**
+* post request register
+* 
+* @param mixed $uri request url
+* @param mixed $func callback function name or function itself
+* @param mixed $agent requesting agent regular expression
+*/
 function post($uri, $func, $agent = false){
 	dispatch('post', $uri, $func, $agent);
 }
 
-// put request register
+/**
+* put request register
+* 
+* @param mixed $uri request url
+* @param mixed $func callback function name or function itself
+* @param mixed $agent requesting agent regular expression
+*/
 function put($uri, $func, $agent = false){
 	dispatch('put', $uri, $func, $agent);
 }
 
-// delete request register
+/**
+* delete request register
+* 
+* @param mixed $uri request url
+* @param mixed $func callback function name or function itself
+* @param mixed $agent requesting agent regular expression
+*/
 function delete($uri, $func, $agent = false){
 	dispatch('delete', $uri, $func, $agent);
 }
@@ -211,7 +293,9 @@ function render($template_name,$_templateData=array()){
 	return true;
 }
 
-// Start the engine
+/**
+* start engine
+*/
 function start(){
 	$url = ugetURI();
 	$ret = utriggerFunction( $url , ugetReqMethod() );
