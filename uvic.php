@@ -34,7 +34,7 @@ namespace MiMViC;
 /**
 * Class for throwing MiMViC specific exceptions
 */
-class MiMViCException extends Exception{
+class MiMViCException extends \Exception{
     
 }
 
@@ -76,10 +76,10 @@ function store($name, &$value){
 * @param mixed $name
 * @return mixed
 */
-function &retrieve($name){
+function retrieve($name){
 	global $uvicConfig;
     if(!isset($uvicConfig['userData'][$name]))
-        throw new MiMViCException("No such key");
+        return null;
 	return $uvicConfig['userData'][$name];
 }
 
