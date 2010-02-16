@@ -1,4 +1,5 @@
 <?php
+error_reporting(E_STRICT);
 require_once '../../uvic.php';
 use MiMViC as mvc;
 
