@@ -107,8 +107,9 @@ function ugetURI(){
 	//make sure the end part exists...
 	$req=str_replace($page,'',$req);
 	
-	if(!strlen($req))
-		return "/";
+	// if the starting '/' is missing append it
+	if(strlen($req)=== 0 || $req[0]!=='/')
+		$req = '/'.$req;
 	
 	return $req;
 }
