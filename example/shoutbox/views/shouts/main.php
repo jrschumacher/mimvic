@@ -44,7 +44,7 @@
 		
 		$.ajax({
 			"type": "GET",
-			"url": "http://localhost/mimvic/trunk/example/shoutbox/index.php/get/from/"+st+"/next/20",
+			"url": "<?php echo BASE_URL;?>get/from/"+st+"/next/20",
 			"dataType": "json",
 			"success": loadedShouts
 		});
@@ -55,7 +55,7 @@
 		var id = $("input[name=shout_id]", domNode).val();
 		$.ajax({
 			"type": "delete",
-			"url": "http://localhost/mimvic/trunk/example/shoutbox/index.php/delete/"+id,
+			"url": "<?php echo BASE_URL;?>delete/"+id,
 			"dataType": "json",
 			"success": function(data){
 				if(data === false)
@@ -71,7 +71,7 @@
 		var shout = $('#shout').val();
 		$.ajax({
 			"type": "post",
-			"url": "http://localhost/mimvic/trunk/example/shoutbox/index.php/save",
+			"url": "<?php echo BASE_URL;?>save",
 			"dataType": "json",
 			"data": {
 				"name": name,
@@ -102,6 +102,14 @@
 		<input id="name" type="text" value="" /><input id="shout" type="text" value="" style="width: 300px;" /><input type="submit" value="Add" />
 	</div>
 	<div id="shouts">
+	</div>
+	<div>
+		mod_rewrite is 
+		<?php if($mod_rewrite): ?>
+			Detected
+		<?php else: ?>
+			Not there :(
+		<?php endif ?>
 	</div>
 </body>
 </html>

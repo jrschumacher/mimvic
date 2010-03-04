@@ -3,7 +3,9 @@ use MiMViC as mvc;
 
 mvc\dispatch('*','/',
 	function (){
-		mvc\render('views/shouts/main.php');
+		$data = array();
+		$data['mod_rewrite'] = mvc\isModRewrite();
+		mvc\render('views/shouts/main.php', $data);
 	}
 );
 
