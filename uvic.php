@@ -4,7 +4,7 @@
 
 Copyright (c) 2009 Zohaib Sibt-e-Hassan ( MaXPert )
 
-MiMViC Shift v0.9.3
+MiMViC Shift v0.9.4
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -60,6 +60,13 @@ $uvicConfig['maps'] = array( );
 $uvicConfig['userData'] = array( );
 
 /**
+* Associative array for holding bechmark data
+*
+* @var array
+*/
+$uvicConfig['bechmark'] = array( );
+
+/**
 * Store the user associated data key value pairs
 * 
 * @param mixed $name name of parameter to be set
@@ -70,11 +77,12 @@ function store($name, &$value){
 	$uvicConfig['userData'][$name] = $value;
 }
 
+
 /**
 * Retrieve the user stored value
 * 
 * @param mixed $name
-* @return mixed
+* @return mixed stored data against given $name
 */
 function retrieve($name){
 	global $uvicConfig;
@@ -84,8 +92,30 @@ function retrieve($name){
 }
 
 /**
+* Tell if mod_rewrite is detected
+* 
+* @return boolean true if detected false otherwise
+*/
+function isModRewrite(){
+	global $uvicConfig;
+	if( isset($uvicConfig['mod_rewrite_detected']) )
+		return $uvicConfig['mod_rewrite_detected'];
+	
+	$req=$_SERVER['REQUEST_URI'];
+	$page=$_SERVER['SCRIPT_NAME'];
+	
+	if ( stripos($req, $page) === FALSE && isset( $_SERVER['REDIRECT_URL'] ) )
+		$uvicConfig['mod_rewrite_detected'] = true;
+	else
+		$uvicConfig['mod_rewrite_detected'] = false;
+	
+	return $uvicConfig['mod_rewrite_detected'];
+}
+
+/**
 * Get URI segement after the script URI
 * 
+* @return string relative uri containing the path after the index.php
 */
 function ugetURI(){
 	//Seprate Segments
@@ -117,16 +147,18 @@ function ugetURI(){
 /**
 * Get request method
 * 
+* @return string lowered case request methond ( currently supporting GET, PUT, DELETE, POST)
 */
 function ugetReqMethod(){
 	return strtolower( $_SERVER['REQUEST_METHOD'] );
 }
 
 /**
-* Parse URI segement
+* Parse URI segement. Tries to match URL on given pattern without using regexp for performance.
 * Pattern can have expression like following
 *    # /foo/:varname/bar => param['varname'] will contain value
 *    # /foo/* /bar/* => param['segments'] will contain all * parsed params
+* Note: astrix as first token is not supported yet
 * 
 * @param string $pattern custom pattern expression
 * @param string $ur the url to match against the pattern
@@ -214,6 +246,7 @@ function dispatch($method, $uri, $func, $agent = false){
 	global $uvicConfig;
 	$map = &$uvicConfig['maps'];
     
+	// for all methods *
     if($method == '*')
         $method = array('get','post','put','delete');
 	
@@ -277,7 +310,9 @@ function delete($uri, $func, $agent = false){
 	dispatch('delete', $uri, $func, $agent);
 }
 
-//Render template with $template_name file path and $_tempateData containing associative data
+/**
+* Render template with $template_name file path and $_tempateData containing associative data
+*/
 function render($template_name,$_templateData=array()){
 	if(stristr($template_name,'.php')===FALSE)
 		$template_name=$template_name.'.php';
@@ -292,6 +327,35 @@ function render($template_name,$_templateData=array()){
 		return NULL;
 		
 	return true;
+}
+
+/**
+* Start benchmark timer for given $name
+* 
+* @param string $name name of marker to save
+*/
+function startBenchmark($name){
+	global $uvicConfig;
+	
+	$uvicConfig['benchmark'][$name] = microtime();
+}
+
+/**
+* Calculate total time consumed for given benchmark $name
+* 
+* @param string $name name of the marker to calculate total time for
+* @return mixed null incase of $name mark not being found; float otherwise containing the total time consumed
+*/
+function calcBenchmark($name){
+	global $uvicConfig;
+	
+	if( !isset($uvicConfig['benchmark'][$name]) )
+		return null;
+	
+	list($startMic, $startSec) = explode(' ', $uvicConfig['benchmark'][$name]);
+	list($endMic, $endSec) = explode(' ', microtime());
+	
+	return (float)($endMic + $endSec) - (float)($startMic + $startSec);
 }
 
 /**
