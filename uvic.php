@@ -118,8 +118,8 @@ function isModRewrite(){
 * @param string $url url to strip get parameters from it
 */
 function uRemoveGetParams($url){
-	list($relUrl,$params) = explode('?', $url);
-	return $relUrl;
+	$relUrl = explode('?', $url);
+	return $relUrl[0];
 }
 
 /**
