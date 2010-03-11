@@ -4,10 +4,20 @@ require_once '../../uvic.php';
 
 use MiMViC as mvc;
 
-mvc\get('/do/nothing/',
+define ('WEB_ROOT', '/mimvic/trunk/example/getparams');
+
+mvc\get('/',
 	function ($params){
-		var_dump($_GET);
+		mvc\render('template.php');
 	}
+);
+
+mvc\get('/a/sub/path/*/',
+  function ($params){
+    var_dump($params);
+    echo '<br />';
+    var_dump($_GET);    
+  }
 );
 
 

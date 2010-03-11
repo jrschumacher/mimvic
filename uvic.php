@@ -4,7 +4,7 @@
 
 Copyright (c) 2009 Zohaib Sibt-e-Hassan ( MaXPert )
 
-MiMViC Shift v0.9.4
+MiMViC Shift v0.9.6
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
