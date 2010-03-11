@@ -113,13 +113,23 @@ function isModRewrite(){
 }
 
 /**
+* Remove the regular expression ?.+ from URL
+*
+* @param string $url url to strip get parameters from it
+*/
+function uRemoveGetParams($url){
+	list($relUrl,$params) = explode('?', $url);
+	return $relUrl;
+}
+
+/**
 * Get URI segement after the script URI
 * 
 * @return string relative uri containing the path after the index.php
 */
 function ugetURI(){
 	//Seprate Segments
-	$req=$_SERVER['REQUEST_URI'];
+	$req=uRemoveGetParams($_SERVER['REQUEST_URI']);
 	$page=$_SERVER['SCRIPT_NAME'];
 
 	// Try if its mod_rewrite
@@ -223,7 +233,7 @@ function utriggerFunction($uri, $method){
 					}else{
 						$ret = $inf['func']($cParams);
 					}
-					return $ret;
+					return $ret || true;
 				}
 			}
 			break;
@@ -364,6 +374,7 @@ function calcBenchmark($name){
 function start(){
 	$url = ugetURI();
 	$ret = utriggerFunction( $url , ugetReqMethod() );
+	return $ret;
 }
 
 ?>
