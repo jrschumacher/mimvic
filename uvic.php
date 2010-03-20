@@ -4,7 +4,7 @@
 
 Copyright (c) 2009 Zohaib Sibt-e-Hassan ( MaXPert )
 
-MiMViC Shift v0.9.6
+MiMViC Shift v0.9.8
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -51,6 +51,14 @@ $uvicConfig = array();
 * @var array
 */
 $uvicConfig['maps'] = array( );
+
+/**
+* Chain associative array for chains
+* 
+* @var array
+*/
+$uvicConfig['chains'] = array( );
+$uvicConfig['chainPrefix'] = ':';
 
 /**
 * Associative array for holding the user stored data
@@ -226,11 +234,15 @@ function utriggerFunction($uri, $method){
 		{
 			// Select the first fit method and call it
 			foreach($info as $inf){
-				if($inf['method'] == $method && is_callable($inf['func']) && ( $inf['agent'] === false || preg_match($inf['agent'], $_SERVER['HTTP_USER_AGENT']) > 0 ) ){
-					if( is_string($inf['func']) ){
-						$func = $inf['func'];
-						$ret = $func($cParams);
-					}else{
+				if($inf['method'] == $method && ( $inf['agent'] === false || preg_match($inf['agent'], $_SERVER['HTTP_USER_AGENT']) > 0 ) ){
+					if( is_array($inf['func']) ){
+						//Chained call from array
+						$ret = array();
+						foreach($inf['func'] as $arg)
+							if( is_callable($arg) )
+								$ret[] = $arg($cParams);
+					}elseif( is_callable( $inf['func']) ){
+						//If string or function handler
 						$ret = $inf['func']($cParams);
 					}
 					return $ret || true;
@@ -366,6 +378,55 @@ function calcBenchmark($name){
 	list($endMic, $endSec) = explode(' ', microtime());
 	
 	return (float)($endMic + $endSec) - (float)($startMic + $startSec);
+}
+
+/**
+* register chain name
+* 
+* @param mixed $name name of chain
+* @param mixed ... chain functions
+*/
+function createChain($name){
+	global $uvicConfig;
+	$args = func_get_args();
+	$args = array_slice($args, 1);
+	
+	$uvicConfig['chains'][$uvicConfig['chainPrefix'].$name] = $args;
+}
+
+/**
+* destroy chain name
+* 
+* @param mixed $name name of chain
+*/
+function destroyChain($name){
+	global $uvicConfig;
+	unset($uvicConfig['chains'][$uvicConfig['chainPrefix'].$name]);
+}
+
+/**
+* call chains with given function and chain names; if input type is string the 
+* mimivic first tries to resolve chain of such name, if no such named chain (created from createChain)
+* is found mimvic then tries to resolve it as a function
+* 
+* @param mixed ... name of chains or functions
+*/
+function chain(){
+	global $uvicConfig;
+	
+	$ret = array();
+	$chain = &$uvicConfig['chains'];
+	$chainPrefix = $uvicConfig['chainPrefix'];
+	$args = func_get_args();
+	
+	foreach($args as $name){
+		if( is_string($name) && isset($chain[$chainPrefix.$name]) )
+			$ret = array_merge($ret, $chain[$chainPrefix.$name]);
+		else if( is_callable($name) )
+			$ret[] = $name;
+	}
+	
+	return $ret;
 }
 
 /**
