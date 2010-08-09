@@ -144,7 +144,10 @@ function ugetURI(){
 	if( stripos($req, $page) === FALSE && isset( $_SERVER['REDIRECT_URL'] ) ){
 		$page = explode('/', $page);
 		$page = array_slice($page, 0, -1);
-		$page = join('/', $page)."/";
+		if (count($page) > 1)
+			$page = join('/', $page)."/";
+		else
+			$page = '';
 	}
 	
 	//Bug fix 2/20/2008 if no index.php was present at the end :D
