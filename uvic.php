@@ -2,9 +2,9 @@
 
 /*
 
-Copyright (c) 2009 Zohaib Sibt-e-Hassan ( MaXPert )
+Copyright (c) 2010 Zohaib Sibt-e-Hassan ( MaXPert )
 
-MiMViC Shift v0.9.8
+MiMViC Shift v0.9.9
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -35,7 +35,19 @@ namespace MiMViC;
 * Class for throwing MiMViC specific exceptions
 */
 class MiMViCException extends \Exception{
-    
+}
+
+/**
+* Class for throwing Not callable exception thrown by callIfCallable exceptions
+*/
+class NotCallableException extends MiMViCException{
+}
+
+/**
+* Class for action handling
+*/
+interface ActionHandler {
+	public function exec($params);
 }
 
 /**
@@ -175,11 +187,47 @@ function ugetReqMethod(){
 }
 
 /**
+* Escape string for regular expression so that it can be used in literal terms
+* @param	string	string value to be escaped
+* @return	string	escaped string for regular expression 
+*/ 
+function uescapeForRegex($str){
+	$esc_syms = array('^','[','.','$','{','*','(',"\\",'/','+',')','|', '?', '>', '<');
+	foreach($esc_syms as $sym)
+		$str = str_replace($sym, "\\".$sym, $str);
+	return $str;
+}
+
+/**
+* Create pattern out of seperated segments (exploded at / from URI)
+* and according to there type compile a regular expression for the system
+* @param array $elms array of segments exploded from url (will be dealt literally)
+* @return string a compiled regular expression string 
+*/ 
+function ucompileExpression($elms){
+	$namedParamRex = "(.+)";
+	$anyParamRex = "(.*)";
+	$exp = array();
+	foreach($elms as $elm){
+		//For named parameter
+		$v = '';
+		if(strlen($elm) && $elm[0] == ':')
+			$v = $namedParamRex;
+		elseif($elm === '*')
+			$v = $anyParamRex;
+		else
+			$v = uescapeForRegex($elm);
+		$exp[] = $v;
+	}
+	
+	return "/^".implode("\/", $exp)."$/i";
+}
+
+/**
 * Parse URI segement. Tries to match URL on given pattern without using regexp for performance.
 * Pattern can have expression like following
 *    # /foo/:varname/bar => param['varname'] will contain value
 *    # /foo/* /bar/* => param['segments'] will contain all * parsed params
-* Note: astrix as first token is not supported yet
 * 
 * @param string $pattern custom pattern expression
 * @param string $ur the url to match against the pattern
@@ -187,36 +235,55 @@ function ugetReqMethod(){
 */
 function uparseURIParams($pattern, $ur){
 	$psegs = explode('/', $pattern); //Pattern segments
-	$usegs = explode('/', $ur); //URI segments
+	//$usegs = explode('/', $ur); //URI segments
 	
-	$ret = array('segments' => array() );
+	//Compile Regular expression out of pattern string
+	$exp = ucompileExpression($psegs);
+	$matches = array();
+	$m = preg_match($exp, $ur, $matches);
 	
-	while( count($psegs) && count($usegs) ){
-		$pseg=$psegs[0];
-		array_shift($psegs);
-		
-		if(strlen($pseg) && $pseg[0] == ':'){ //Incase :foo
-			//remove :
-			$pseg = substr($pseg,1);
-			// assign to ret
-			$ret[$pseg] = urldecode(array_shift($usegs));
-		}else if($pseg == $usegs[0]){ //Incase of simple match
-			array_shift($usegs);
-		}else if($pseg == '*'){
-			//Repeat extraction untill first match found in next segments (/foo/*/bar/* bar in URL) 
-			$segment = array();
-			while( count($usegs) && $psegs[0] != $usegs[0] )
-				array_push( $segment, array_shift($usegs) );
-				
-			array_push($ret['segments'], $segment);
-		}else
-			return false;
-	}
-	
-	if( count($psegs) || count($usegs) )
+	//If matching fails return false
+	if(!$m)
 		return false;
 	
+	//Map and populate values from matched $matches to returnable string
+	$ret = array('segments' => array());
+	$i = 1;
+	foreach($psegs as $pseg){
+		if(strlen($pseg) && $pseg[0] == ':')
+			$ret[substr($pseg, 1)] = $matches[$i++];
+		elseif($pseg === '*')
+			$ret['segments'][] = explode('/', $matches[$i++]);
+	}
 	return $ret;
+}
+
+/**
+* Tries to check if the $obj can be called through $params, throws NotCallableException in case of failure 
+* @param 	mixed 	$obj 	array, or string name, or function object that would be tried to be called
+* @param 	array 	$params	set of parameters to be passed to the function
+* @return	mixed	value returned by function call
+*/
+function ucallIfCallable($obj, $params){
+	$func_name = '';
+	$isCallable = is_callable($obj, true, $func_name);
+	if($isCallable)
+		return call_user_func($obj, $params);
+	throw new NotCallableException();
+}
+	
+/**
+* Tries to check if the $obj can be called through $params if failure occurs invokes the error trigger 
+* @param 	mixed 	$obj 	array, or string name, or function object that would be tried to be called
+* @param 	array 	$params	set of parameters to be passed to the function
+* @return	mixed	value returned by function call, no value in case of failure
+*/
+function ucallNHandle($obj, $params){
+	try{
+		return ucallIfCallable($obj, $params);
+	}catch(NotCallableException $e){
+		//TODO: Introduce the mechanism to handle failure to call Error 404 
+	}
 }
 
 /**
@@ -232,6 +299,7 @@ function utriggerFunction($uri, $method){
 	foreach($map as $patrn => $info){
 		//Try to match
 		$cParams = uparseURIParams($patrn, $uri);
+		$ret = false;
 		//Catch validity and call
 		if( is_array($cParams) )
 		{
@@ -239,14 +307,19 @@ function utriggerFunction($uri, $method){
 			foreach($info as $inf){
 				if($inf['method'] == $method && ( $inf['agent'] === false || preg_match($inf['agent'], $_SERVER['HTTP_USER_AGENT']) > 0 ) ){
 					if( is_array($inf['func']) ){
+						try{
+							$ret = ucallIfCallable($inf['func'], $cParams);
+							return $ret;
+						}catch(NotCallableException $m){
+						}
 						//Chained call from array
 						$ret = array();
 						foreach($inf['func'] as $arg)
 							if( is_callable($arg) )
-								$ret[] = $arg($cParams);
+								$ret[] = ucallNHandle($arg, $cParams);
 					}elseif( is_callable( $inf['func']) ){
 						//If string or function handler
-						$ret = $inf['func']($cParams);
+						$ret = ucallNHandle($inf['func'], $cParams);
 					}
 					return $ret || true;
 				}
@@ -334,6 +407,19 @@ function put($uri, $func, $agent = false){
 function delete($uri, $func, $agent = false){
 	dispatch('delete', $uri, $func, $agent);
 }
+
+/**
+* Create approriate callable object for an ActionHandler derived class of 
+* specified $name
+* @param string $name	name of class to instantiate
+* @param object $cls	pre-constructed object (if anything other than using default constructor is to be used)
+*/
+function Action($name, $clsObj = NULL){
+	if($clsObj === NULL)
+		$clsObj = new $name();
+	return array(&$clsObj, 'exec');
+}
+
 
 /**
 * Render template with $template_name file path and $_tempateData containing associative data
